@@ -55,6 +55,10 @@
     <ClInclude Include="src\Shader.h" />
     <ClInclude Include="src\ViewFrustumSceneObject.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="src\shader\oglFragmentShader.glsl" />
+    <Content Include="src\shader\oglVertexShader.glsl" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{ADA5FF44-3FBE-44D5-94ED-FFD82E3DF373}</ProjectGuid>
     <RootNamespace>Rendering_Framework</RootNamespace>
