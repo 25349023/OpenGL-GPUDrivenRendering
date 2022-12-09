@@ -1,3 +1,5 @@
+#define GLM_FORCE_SWIZZLE
+
 #include "src\Shader.h"
 #include "src\SceneRenderer.h"
 #include <GLFW\glfw3.h>
@@ -6,7 +8,7 @@
 #include "src\ViewFrustumSceneObject.h"
 #include "src\InfinityPlane.h"
 
-#include <glm/gtx/quaternion.hpp>
+#include "glm/gtx/quaternion.hpp"
 
 #pragma comment (lib, "lib-vc2015\\glfw3.lib")
 #pragma comment(lib, "assimp-vc141-mt.lib")
@@ -19,6 +21,7 @@ void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 void cursorPosCallback(GLFWwindow* window, double x, double y);
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+void updateGodViewMat();
 void updatePlayerViewMat();
 void recalculateLocalZ();
 bool initializeGL();
@@ -29,9 +32,10 @@ void resize(const int w, const int h);
 glm::vec3 rotateCenterAccordingToEye(const glm::vec3& center, const glm::vec3& eye,
                                      const glm::mat4& viewMat, const float rad);
 
-bool m_leftButtonPressed = false;
-bool m_rightButtonPressed = false;
-double cursorPos[2];
+bool leftButtonPressed = false;
+bool rightButtonPressed = false;
+
+glm::vec2 lastCursorPos;
 
 
 MyImGuiPanel* m_imguiPanel = nullptr;
@@ -47,9 +51,11 @@ glm::mat4 godViewMat;
 glm::mat4 playerProjMat;
 glm::mat4 playerViewMat;
 
-glm::vec3 godEye(0, 0, 5), godViewDir(0, 0, -1), godUp(0, 1, 0);
+glm::vec3 godEye(0.0, 50.0, 20.0), godViewDir(0.0, -30.0, -30.0), godUp(0.0, 1.0, 0.0);
+glm::vec3 godLocalX(-1, 0, 0), godLocalY(0, 1, 0), godLocalZ(0, 0, -1);
+// glm::vec3(0.0, 50.0, 20.0), glm::vec3(0.0, 20.0, -10.0), glm::vec3(0.0, 1.0, 0.0)
 glm::vec3 playerEye(0.0, 8.0, 10.0), playerCenter(0.0, 5.0, 0.0), playerUp(0.0, 1.0, 0.0);
-glm::vec3 playerLocalX(-1, 0, 0), playerLocalY(0, 1, 0), playerLocalZ(0, 0, -1);
+glm::vec3 playerLocalZ(0, 0, -1);
 
 ViewFrustumSceneObject* viewFrustumSO = nullptr;
 InfinityPlane* infinityPlane = nullptr;
@@ -189,7 +195,10 @@ bool initializeGL()
 
     // =================================================================
     // initialize camera
-    godViewMat = glm::lookAt(glm::vec3(0.0, 50.0, 20.0), glm::vec3(0.0, 20.0, -10.0), glm::vec3(0.0, 1.0, 0.0));
+    // godViewMat = glm::lookAt(glm::vec3(0.0, 50.0, 20.0), glm::vec3(0.0, 20.0, -10.0), glm::vec3(0.0, 1.0, 0.0));
+    godLocalZ = glm::normalize(godViewDir);
+    godLocalY = glm::normalize(glm::cross(godLocalZ, godLocalX));
+    updateGodViewMat();
     updatePlayerViewMat();
 
     const glm::vec4 directionalLightDir = glm::vec4(0.4, 0.5, 0.8, 0.0);
@@ -216,6 +225,11 @@ void resizeGL(GLFWwindow* window, int w, int h)
     resize(w, h);
 }
 
+void updateGodViewMat()
+{
+    godViewMat = glm::lookAt(godEye, godEye + godViewDir, godUp);
+}
+
 void updatePlayerViewMat()
 {
     playerViewMat = glm::lookAt(playerEye, playerCenter, playerUp);
@@ -234,6 +248,7 @@ void paintGL()
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    updateGodViewMat();
     updatePlayerViewMat();
     // ===============================
     // update infinity plane with player camera
@@ -272,9 +287,50 @@ void paintGL()
 
 ////////////////////////////////////////////////
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
-{ }
+{
+    if (button == GLFW_MOUSE_BUTTON_LEFT)
+    {
+        if (action == GLFW_PRESS)
+        {
+            leftButtonPressed = true;
+        }
+        else
+        {
+            leftButtonPressed = false;
+        }
+    }
+    else if (button == GLFW_MOUSE_BUTTON_RIGHT)
+    {
+        if (action == GLFW_PRESS)
+        {
+            rightButtonPressed = true;
+        }
+        else
+        {
+            rightButtonPressed = false;
+        }
+    }
+}
+
 void cursorPosCallback(GLFWwindow* window, double x, double y)
-{ }
+{
+    if (leftButtonPressed)
+    {
+        using namespace glm;
+        glm::vec2 changed = glm::vec2(x, y) - lastCursorPos;
+        vec2 change = 0.2f * (lastCursorPos - vec2(x, y));
+
+        int sign = (godViewDir.z > 0) ? -1 : 1;
+        mat4 R = mat4_cast(quat(vec3(radians(sign * change.y), radians(change.x), 0)));
+
+        godViewDir = (R * vec4(godViewDir, 1)).xyz;
+
+        godLocalZ = (R * vec4(godLocalZ, 1)).xyz;
+        godLocalX = normalize(cross(godUp, godLocalZ));
+        godLocalY = normalize(cross(godLocalZ, godLocalX));
+    }
+    lastCursorPos = glm::vec2(x, y);
+}
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -304,7 +360,11 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     }
 }
 
-void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {}
+void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    // printf("%f, %f\n", xoffset, yoffset);
+    godEye += (float)yoffset * godLocalZ;
+}
 
 void updateWhenPlayerProjectionChanged(const float nearDepth, const float farDepth)
 {
