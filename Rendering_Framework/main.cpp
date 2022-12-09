@@ -6,6 +6,8 @@
 #include "src\ViewFrustumSceneObject.h"
 #include "src\InfinityPlane.h"
 
+#include <glm/gtx/quaternion.hpp>
+
 #pragma comment (lib, "lib-vc2015\\glfw3.lib")
 #pragma comment(lib, "assimp-vc141-mt.lib")
 
@@ -17,10 +19,15 @@ void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 void cursorPosCallback(GLFWwindow* window, double x, double y);
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+void updatePlayerViewMat();
+void recalculateLocalZ();
 bool initializeGL();
 void resizeGL(GLFWwindow* window, int w, int h);
 void paintGL();
 void resize(const int w, const int h);
+
+glm::vec3 rotateCenterAccordingToEye(const glm::vec3& center, const glm::vec3& eye,
+                                     const glm::mat4& viewMat, const float rad);
 
 bool m_leftButtonPressed = false;
 bool m_rightButtonPressed = false;
@@ -39,6 +46,10 @@ glm::mat4 godProjMat;
 glm::mat4 godViewMat;
 glm::mat4 playerProjMat;
 glm::mat4 playerViewMat;
+
+glm::vec3 godEye(0, 0, 5), godViewDir(0, 0, -1), godUp(0, 1, 0);
+glm::vec3 playerEye(0.0, 8.0, 10.0), playerCenter(0.0, 5.0, 0.0), playerUp(0.0, 1.0, 0.0);
+glm::vec3 playerLocalX(-1, 0, 0), playerLocalY(0, 1, 0), playerLocalZ(0, 0, -1);
 
 ViewFrustumSceneObject* viewFrustumSO = nullptr;
 InfinityPlane* infinityPlane = nullptr;
@@ -179,7 +190,7 @@ bool initializeGL()
     // =================================================================
     // initialize camera
     godViewMat = glm::lookAt(glm::vec3(0.0, 50.0, 20.0), glm::vec3(0.0, 20.0, -10.0), glm::vec3(0.0, 1.0, 0.0));
-    playerViewMat = glm::lookAt(glm::vec3(0.0, 8.0, 10.0), glm::vec3(0.0, 5.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    updatePlayerViewMat();
 
     const glm::vec4 directionalLightDir = glm::vec4(0.4, 0.5, 0.8, 0.0);
 
@@ -190,7 +201,7 @@ bool initializeGL()
     defaultRenderer->appendObject(infinityPlane->sceneObject());
 
     viewFrustumSO = new ViewFrustumSceneObject(2, SceneManager::Instance()->m_fs_pixelProcessIdHandle,
-                                               SceneManager::Instance()->m_fs_pureColor);
+        SceneManager::Instance()->m_fs_pureColor);
     defaultRenderer->appendObject(viewFrustumSO->sceneObject());
 
     resize(FRAME_WIDTH, FRAME_HEIGHT);
@@ -205,19 +216,32 @@ void resizeGL(GLFWwindow* window, int w, int h)
     resize(w, h);
 }
 
+void updatePlayerViewMat()
+{
+    playerViewMat = glm::lookAt(playerEye, playerCenter, playerUp);
+}
+
+void recalculateLocalZ()
+{
+    playerLocalZ = playerCenter - playerEye;
+    playerLocalZ.y = 0;
+    playerLocalZ = glm::normalize(playerLocalZ);
+}
+
 void paintGL()
 {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    updatePlayerViewMat();
     // ===============================
     // update infinity plane with player camera
-    const glm::vec3 PLAYER_VIEW_POSITION = glm::vec3(0.0, 8.0, 10.0);
-    infinityPlane->updateState(playerViewMat, PLAYER_VIEW_POSITION);
+    // const glm::vec3 PLAYER_VIEW_POSITION = glm::vec3(0.0, 8.0, 10.0);
+    infinityPlane->updateState(playerViewMat, playerEye);
 
     // update player camera view frustum
-    viewFrustumSO->updateState(playerViewMat, PLAYER_VIEW_POSITION);
+    viewFrustumSO->updateState(playerViewMat, playerEye);
 
     // =============================================
     // start new frame
@@ -247,9 +271,39 @@ void paintGL()
 }
 
 ////////////////////////////////////////////////
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {}
-void cursorPosCallback(GLFWwindow* window, double x, double y) {}
-void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {}
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{ }
+void cursorPosCallback(GLFWwindow* window, double x, double y)
+{ }
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    const float translateSpeed = 0.5f, rotateSpeed = 1.5f;
+    const glm::vec3 translateAmount = translateSpeed * playerLocalZ;
+
+    switch (key)
+    {
+    case GLFW_KEY_W:
+        playerEye += translateAmount;
+        playerCenter += translateAmount;
+        break;
+    case GLFW_KEY_S:
+        playerEye -= translateAmount;
+        playerCenter -= translateAmount;
+        break;
+    case GLFW_KEY_A:
+        playerCenter = rotateCenterAccordingToEye(
+            playerCenter, playerEye, playerViewMat, glm::radians(rotateSpeed));
+        recalculateLocalZ();
+        break;
+    case GLFW_KEY_D:
+        playerCenter = rotateCenterAccordingToEye(
+            playerCenter, playerEye, playerViewMat, glm::radians(-rotateSpeed));
+        recalculateLocalZ();
+        break;
+    }
+}
+
 void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {}
 
 void updateWhenPlayerProjectionChanged(const float nearDepth, const float farDepth)
@@ -363,4 +417,18 @@ void viewFrustumMultiClipCorner(const std::vector<float>& depths, const glm::mat
         }
         clipOffset = clipOffset + 1;
     }
+}
+
+
+glm::vec3 rotateCenterAccordingToEye(const glm::vec3& center, const glm::vec3& eye,
+                                     const glm::mat4& viewMat, const float rad)
+{
+    glm::mat4 vt = glm::transpose(viewMat);
+    glm::vec4 yAxisVec4 = vt[1];
+    glm::vec3 yAxis(yAxisVec4.x, yAxisVec4.y, yAxisVec4.z);
+    glm::quat q = glm::angleAxis(rad, yAxis);
+    glm::mat4 rotMat = glm::toMat4(q);
+    glm::vec3 p = center - eye;
+    glm::vec4 resP = rotMat * glm::vec4(p.x, p.y, p.z, 1.0);
+    return glm::vec3(resP.x + eye.x, resP.y + eye.y, resP.z + eye.z);
 }
