@@ -1,0 +1,8 @@
+.idea/
+Debug/
+externals/
+x64/
+
+*.db
+*.exe
+
