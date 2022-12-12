@@ -30,9 +30,12 @@
     <ClCompile Include="src\DynamicSceneObject.cpp" />
     <ClCompile Include="src\glad.c" />
     <ClCompile Include="src\InfinityPlane.cpp" />
+    <ClCompile Include="src\Material.cpp" />
+    <ClCompile Include="src\Model.cpp" />
     <ClCompile Include="src\MyImGuiPanel.cpp" />
     <ClCompile Include="src\SceneRenderer.cpp" />
     <ClCompile Include="src\Shader.cpp" />
+    <ClCompile Include="src\Shape.cpp" />
     <ClCompile Include="src\ViewFrustumSceneObject.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -47,15 +50,28 @@
     <ClInclude Include="..\externals\include\imgui\imstb_truetype.h" />
     <ClInclude Include="src\DynamicSceneObject.h" />
     <ClInclude Include="src\InfinityPlane.h" />
+    <ClInclude Include="src\Material.h" />
+    <ClInclude Include="src\Model.h" />
     <ClInclude Include="src\MyImGuiPanel.h" />
     <ClInclude Include="src\MyMovingTrack.h" />
     <ClInclude Include="src\MyPoissonSample.h" />
     <ClInclude Include="src\SceneManager.h" />
     <ClInclude Include="src\SceneRenderer.h" />
     <ClInclude Include="src\Shader.h" />
+    <ClInclude Include="src\Shape.h" />
     <ClInclude Include="src\ViewFrustumSceneObject.h" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="assets\bush01.png" />
+    <Content Include="assets\bush01_lod2.obj" />
+    <Content Include="assets\bush05.png" />
+    <Content Include="assets\bush05_lod2.obj" />
+    <Content Include="assets\grassB.obj" />
+    <Content Include="assets\grassB_albedo.png" />
+    <Content Include="assets\poissonPoints_1010.ppd" />
+    <Content Include="assets\poissonPoints_155304.ppd" />
+    <Content Include="assets\poissonPoints_2797.ppd" />
+    <Content Include="assets\slime.obj" />
     <Content Include="src\shader\oglFragmentShader.glsl" />
     <Content Include="src\shader\oglVertexShader.glsl" />
   </ItemGroup>
@@ -128,7 +144,6 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

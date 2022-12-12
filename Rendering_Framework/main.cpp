@@ -9,6 +9,15 @@
 #include "src\InfinityPlane.h"
 
 #include "glm/gtx/quaternion.hpp"
+#include "src/MyPoissonSample.h"
+
+#include "assimp/cimport.h"
+#include "assimp/scene.h"
+#include "assimp/postprocess.h"
+
+#include "src/Shape.h"
+#include "src/Material.h"
+#include "src/Model.h"
 
 #pragma comment (lib, "lib-vc2015\\glfw3.lib")
 #pragma comment(lib, "assimp-vc141-mt.lib")
@@ -59,6 +68,13 @@ glm::vec3 playerLocalZ(0, 0, -1);
 
 ViewFrustumSceneObject* viewFrustumSO = nullptr;
 InfinityPlane* infinityPlane = nullptr;
+// ==============================================
+
+int numSamples[3];
+const float* samplePositions[3];
+
+GLuint vao, ssbo;
+
 // ==============================================
 
 void updateWhenPlayerProjectionChanged(const float nearDepth, const float farDepth);
@@ -155,6 +171,41 @@ void vsyncDisabled(GLFWwindow* window)
 }
 
 
+void loadModel()
+{
+    Model grass("assets/grassB.obj", "assets/grassB_albedo.png");
+    Model grass2("assets/bush01_lod2.obj", "assets/bush01.png");
+    Model grass3("assets/bush05_lod2.obj", "assets/bush05.png");
+    
+    MyPoissonSample* sample0 = MyPoissonSample::fromFile("assets/poissonPoints_155304.ppd");
+    numSamples[0] = sample0->m_numSample;
+    samplePositions[0] = sample0->m_positions; // (size = num_sample * 3)
+
+    // MyPoissonSample* sample1 = MyPoissonSample::fromFile("assets/poissonPoints_1010.ppd");
+    // numSamples[1] = sample1->m_numSample;
+    // samplePositions[1] = sample1->m_positions;
+    //
+    // MyPoissonSample* sample2 = MyPoissonSample::fromFile("assets/poissonPoints_2797.ppd");
+    // numSamples[2] = sample2->m_numSample;
+    // samplePositions[2] = sample2->m_positions;
+}
+
+void initSSBO()
+{
+    glGenBuffers(1, &ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+    glBufferStorage(GL_SHADER_STORAGE_BUFFER, numSamples[0] * 3 * sizeof(int),
+        samplePositions[0], GL_MAP_READ_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
+
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, ssbo);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+    glBindVertexArray(0);
+}
+
 bool initializeGL()
 {
     // initialize shader program
@@ -216,6 +267,10 @@ bool initializeGL()
     resize(FRAME_WIDTH, FRAME_HEIGHT);
     // =================================================================	
     m_imguiPanel = new MyImGuiPanel();
+
+    // =================================================================	
+    // load objs
+    loadModel();
 
     return true;
 }
