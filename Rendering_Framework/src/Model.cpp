@@ -29,11 +29,37 @@ void Model::loadMeshes(const char* path)
 
     shape.bindBuffers();
 
-    shape.material_id = mesh->mMaterialIndex;
     shape.draw_count = mesh->mNumFaces * 3;
 }
 
 void Model::loadMaterials(const char* path)
 {
     material.bindTexture(path);
+}
+
+Model Model::merge(std::vector<Model>& models)
+{
+    Model merged;
+    std::vector<Vertex> Shape::* p = &Shape::vertices;
+
+    auto& shape = merged.shape;
+    for (int i = 0; i < models.size(); ++i)
+    {
+        merged.baseVertices.push_back(shape.vertices.size());
+        
+        for (Vertex& v : models[i].shape.vertices)
+        {
+            v.tex_coords.z = (float)i;
+        }
+
+        shape.vertices.insert(shape.vertices.end(),
+            models[i].shape.vertices.begin(), models[i].shape.vertices.end());
+        shape.indices.insert(shape.indices.end(),
+            models[i].shape.indices.begin(), models[i].shape.indices.end());
+
+        shape.draw_count += models[i].shape.draw_count;
+    }
+
+    shape.bindBuffers();
+    return merged;
 }

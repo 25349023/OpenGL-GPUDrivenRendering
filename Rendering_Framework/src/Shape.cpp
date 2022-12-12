@@ -36,13 +36,14 @@ void Shape::bindBuffers()
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(SceneManager::Instance()->m_vertexHandle, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-    glVertexAttribPointer(SceneManager::Instance()->m_normalHandle, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-    glVertexAttribPointer(SceneManager::Instance()->m_uvHandle, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coords));
+    SceneManager* sm = SceneManager::Instance();
+    glVertexAttribPointer(sm->m_vertexHandle, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glVertexAttribPointer(sm->m_normalHandle, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+    glVertexAttribPointer(sm->m_uvHandle, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coords));
 
-    glEnableVertexAttribArray(SceneManager::Instance()->m_vertexHandle);
-    glEnableVertexAttribArray(SceneManager::Instance()->m_normalHandle);
-    glEnableVertexAttribArray(SceneManager::Instance()->m_uvHandle);
+    glEnableVertexAttribArray(sm->m_vertexHandle);
+    glEnableVertexAttribArray(sm->m_normalHandle);
+    glEnableVertexAttribArray(sm->m_uvHandle);
 
     // index buffer
     glGenBuffers(1, &ibo);

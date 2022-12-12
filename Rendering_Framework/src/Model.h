@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <array>
 #include <vector>
 #include <assimp/scene.h>
 
@@ -11,9 +12,14 @@ struct Model
     Shape shape{};
     Material material{};
 
+    std::vector<int> baseVertices;
+
     Model() = default;
     Model(const char* mesh_path, const char* tex_path);
 
     void loadMeshes(const char* path);
     void loadMaterials(const char* path);
+
+    static Model merge(std::vector<Model>& models);
 };
+
