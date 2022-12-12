@@ -3,6 +3,7 @@
 layout (location = 0) in vec3 v_vertex;
 layout (location = 1) in vec3 v_normal;
 layout (location = 2) in vec3 v_uv;
+layout (location = 3) in vec3 v_offset;
 
 out vec3 f_viewVertex;
 out vec3 f_viewNormal;
@@ -13,11 +14,16 @@ out vec3 f_uv;
 uniform mat4 projMat;
 uniform mat4 viewMat;
 uniform mat4 modelMat;
+uniform int instancedDraw;
 
 void commonProcess() {
     mat4 modelViewMat = viewMat * modelMat;
     vec4 viewVertex = modelViewMat * vec4(v_vertex, 1.0);
     vec4 viewNormal = modelViewMat * vec4(v_normal, 0.0);
+    
+    if (instancedDraw == 1) {
+        viewVertex = modelViewMat * vec4(v_vertex + v_offset, 1.0);
+    }
 
     f_viewVertex = viewVertex.xyz;
     f_viewNormal = viewNormal.xyz;

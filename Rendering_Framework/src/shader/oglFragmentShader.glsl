@@ -9,6 +9,7 @@ in vec3 f_uv;
 layout (location = 0) out vec4 fragColor;
 
 uniform int pixelProcessId;
+uniform sampler2D albedoTex;
 
 vec4 withFog(vec4 color) {
     const vec4 FOG_COLOR = vec4(0.0, 0.0, 0.0, 1);
@@ -47,13 +48,19 @@ void pureColor() {
     fragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
 
-
+void texture_mapping() {
+    fragColor = texture(albedoTex, vec2(f_uv));
+}
 
 void main() {
-    if (pixelProcessId == 4) {
+    if (pixelProcessId == 1) { // texture mapping
+        texture_mapping();
+    }
+    else if (pixelProcessId == 4) {
         proceduralPlane();
     }
     else if (pixelProcessId == 5) {
         pureColor();
     }
+    
 }

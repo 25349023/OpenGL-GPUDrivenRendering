@@ -1,5 +1,7 @@
 ﻿#include "Shape.h"
 
+#include "SceneManager.h"
+
 void Shape::extractMeshData(const aiMesh* mesh)
 {
     for (unsigned int v = 0; v < mesh->mNumVertices; ++v)
@@ -9,7 +11,7 @@ void Shape::extractMeshData(const aiMesh* mesh)
         vertex.normal = glm::vec3(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
         if (mesh->HasTextureCoords(0))
         {
-            vertex.tex_coords = glm::vec2(mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y);
+            vertex.tex_coords = glm::vec3(mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y, 0.0);
         }
         vertices.push_back(vertex);
     }
@@ -34,13 +36,13 @@ void Shape::bindBuffers()
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coords));
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+    glVertexAttribPointer(SceneManager::Instance()->m_vertexHandle, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glVertexAttribPointer(SceneManager::Instance()->m_normalHandle, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+    glVertexAttribPointer(SceneManager::Instance()->m_uvHandle, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coords));
 
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(SceneManager::Instance()->m_vertexHandle);
+    glEnableVertexAttribArray(SceneManager::Instance()->m_normalHandle);
+    glEnableVertexAttribArray(SceneManager::Instance()->m_uvHandle);
 
     // index buffer
     glGenBuffers(1, &ibo);

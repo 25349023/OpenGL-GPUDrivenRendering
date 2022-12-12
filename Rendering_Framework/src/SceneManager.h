@@ -31,6 +31,7 @@ public:
     GLuint m_vertexHandle;
     GLuint m_normalHandle;
     GLuint m_uvHandle;
+    GLuint m_offsetHandel;
     //GLint m_boneIndexHandle;
     //GLint m_weightHandle;
     //GLint m_tangentHandle;
@@ -42,6 +43,7 @@ public:
     GLuint m_projMatHandle;
     GLuint m_viewMatHandle;
     GLuint m_modelMatHandle;
+    GLuint m_instancedDrawHandle;
 
 
     GLuint m_materialHandle;
@@ -52,6 +54,7 @@ public:
     GLuint m_lightPositionInViewHandle;
 
     GLuint m_fs_pixelProcessIdHandle;
+    GLuint m_fs_albedoTexHandle;
 
     GLenum m_albedoTexUnit;
     GLenum m_normalTexUnit;

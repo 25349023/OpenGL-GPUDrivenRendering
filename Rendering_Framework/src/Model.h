@@ -7,10 +7,11 @@
 
 struct Model
 {
-    const aiScene* model;
-    Shape shape;
-    Material material;
-    
+    const aiScene* model{};
+    Shape shape{};
+    Material material{};
+
+    Model() = default;
     Model(const char* mesh_path, const char* tex_path);
 
     void loadMeshes(const char* path);

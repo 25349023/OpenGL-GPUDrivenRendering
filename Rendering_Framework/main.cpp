@@ -70,6 +70,7 @@ ViewFrustumSceneObject* viewFrustumSO = nullptr;
 InfinityPlane* infinityPlane = nullptr;
 // ==============================================
 
+Model grasses[3];
 int numSamples[3];
 const float* samplePositions[3];
 
@@ -173,13 +174,16 @@ void vsyncDisabled(GLFWwindow* window)
 
 void loadModel()
 {
-    Model grass("assets/grassB.obj", "assets/grassB_albedo.png");
-    Model grass2("assets/bush01_lod2.obj", "assets/bush01.png");
-    Model grass3("assets/bush05_lod2.obj", "assets/bush05.png");
+    grasses[0] = Model("assets/grassB.obj", "assets/grassB_albedo.png");
+    grasses[1] = Model("assets/bush01_lod2.obj", "assets/bush01.png");
+    grasses[2] = Model("assets/bush05_lod2.obj", "assets/bush05.png");
     
     MyPoissonSample* sample0 = MyPoissonSample::fromFile("assets/poissonPoints_155304.ppd");
     numSamples[0] = sample0->m_numSample;
     samplePositions[0] = sample0->m_positions; // (size = num_sample * 3)
+    std::cout << numSamples[0] << " Samples." << std::endl;
+    // std::cout << samplePositions[0][30000+0] << "  " << samplePositions[0][30000+1] << "  " << samplePositions[0][30000+2] << std::endl;
+    // std::cout << samplePositions[0][90+0] << "  " << samplePositions[0][90+1] << "  " << samplePositions[0][90+2] << std::endl;
 
     // MyPoissonSample* sample1 = MyPoissonSample::fromFile("assets/poissonPoints_1010.ppd");
     // numSamples[1] = sample1->m_numSample;
@@ -197,12 +201,16 @@ void initSSBO()
     glBufferStorage(GL_SHADER_STORAGE_BUFFER, numSamples[0] * 3 * sizeof(int),
         samplePositions[0], GL_MAP_READ_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
+}
 
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
+void initInstancedSettings() {
+    GLuint offsetHandel = SceneManager::Instance()->m_offsetHandel;
+    
+    glBindVertexArray(grasses[0].shape.vao);
     glBindBuffer(GL_ARRAY_BUFFER, ssbo);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+    glEnableVertexAttribArray(offsetHandel);
+    glVertexAttribPointer(offsetHandel, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+    glVertexAttribDivisor(offsetHandel, 1);
     glBindVertexArray(0);
 }
 
@@ -271,7 +279,9 @@ bool initializeGL()
     // =================================================================	
     // load objs
     loadModel();
-
+    initSSBO();
+    initInstancedSettings();
+    
     return true;
 }
 
@@ -295,6 +305,26 @@ void recalculateLocalZ()
     playerLocalZ = playerCenter - playerEye;
     playerLocalZ.y = 0;
     playerLocalZ = glm::normalize(playerLocalZ);
+}
+
+void drawGrass()
+{
+    auto sm = SceneManager::Instance();
+    glUniform1i(sm->m_instancedDrawHandle, 1);
+    glBindVertexArray(grasses[0].shape.vao);
+    
+    glActiveTexture(sm->m_albedoTexUnit);
+    glUniform1i(sm->m_fs_albedoTexHandle, 0);
+    glBindTexture(GL_TEXTURE_2D, grasses[0].material.diffuse_tex);
+
+    glUniform1i(sm->m_fs_pixelProcessIdHandle, sm->m_fs_textureMapping);
+    glm::mat4 id(1);
+    glUniformMatrix4fv(sm->m_modelMatHandle, 1, false, glm::value_ptr(id));
+    
+    glDrawElementsInstanced(GL_TRIANGLES, grasses[0].shape.draw_count, GL_UNSIGNED_INT, 0, numSamples[0]);
+    
+    glBindVertexArray(0);
+    glUniform1i(sm->m_instancedDrawHandle, 0);
 }
 
 void paintGL()
@@ -324,12 +354,14 @@ void paintGL()
     defaultRenderer->setProjection(godProjMat);
     defaultRenderer->setView(godViewMat);
     defaultRenderer->renderPass();
+    drawGrass();
 
     // rendering with player view
     defaultRenderer->setViewport(HALF_W, 0, HALF_W, FRAME_HEIGHT);
     defaultRenderer->setProjection(playerProjMat);
     defaultRenderer->setView(playerViewMat);
     defaultRenderer->renderPass();
+    drawGrass();
     // ===============================
 
     ImGui::Begin("My name is window");

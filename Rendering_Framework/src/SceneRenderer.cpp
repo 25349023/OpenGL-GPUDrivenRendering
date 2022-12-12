@@ -101,6 +101,9 @@ bool SceneRenderer::setUpShader()
     manager->m_vertexHandle = 0;
     manager->m_normalHandle = 1;
     manager->m_uvHandle = 2;
+    manager->m_offsetHandel = 3;
+
+    // [TODO]: fix these handle index 
     manager->m_instanceMatCol0Handle = 3;
     manager->m_instanceMatCol1Handle = 4;
     manager->m_instanceMatCol2Handle = 5;
@@ -109,6 +112,7 @@ bool SceneRenderer::setUpShader()
     manager->m_modelMatHandle = glGetUniformLocation(programId, "modelMat");
     manager->m_viewMatHandle = glGetUniformLocation(programId, "viewMat");
     manager->m_projMatHandle = glGetUniformLocation(programId, "projMat");
+    manager->m_instancedDrawHandle = glGetUniformLocation(programId, "instancedDraw");
 
     manager->m_gaussianWeights = glGetUniformLocation(programId, "gaussianWeights");
 
@@ -136,6 +140,7 @@ bool SceneRenderer::setUpShader()
     manager->m_fs_textureMappingWithTextureArray = 6;
     manager->m_fs_finalPass = 7;
 
+    manager->m_fs_albedoTexHandle = glGetUniformLocation(programId, "albedoTex");
 
     return true;
 }
