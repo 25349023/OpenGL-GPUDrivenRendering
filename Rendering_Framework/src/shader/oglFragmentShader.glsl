@@ -49,11 +49,15 @@ void pureColor() {
 }
 
 void texture_mapping() {
-    fragColor = texture(albedoTex, vec2(f_uv));
+    vec4 texel = texture(albedoTex, vec2(f_uv));
+    if (texel.a < 0.3) {
+        discard;
+    }
+    fragColor = texel;
 }
 
 void main() {
-    if (pixelProcessId == 1) { // texture mapping
+    if (pixelProcessId == 1) {
         texture_mapping();
     }
     else if (pixelProcessId == 4) {
@@ -62,5 +66,5 @@ void main() {
     else if (pixelProcessId == 5) {
         pureColor();
     }
-    
+
 }
