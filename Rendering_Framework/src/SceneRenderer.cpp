@@ -27,6 +27,11 @@ void SceneRenderer::renderPass()
     }
 }
 
+void SceneRenderer::useProgram()
+{
+    this->m_shaderProgram->useProgram();
+}
+
 // =======================================
 void SceneRenderer::resize(const int w, const int h)
 {

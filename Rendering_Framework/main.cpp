@@ -71,11 +71,13 @@ ViewFrustumSceneObject* viewFrustumSO = nullptr;
 InfinityPlane* infinityPlane = nullptr;
 // ==============================================
 
-Model merged_grass;
+Model mergedGrass;
 int numSamples[3];
 const float* samplePositions[3];
+int totalInstanceCount;
 
-GLuint vao, ssbo;
+ShaderProgram* computeShaderProgram;
+GLuint vao, raw_ssbo, valid_ssbo, drawCmd_ssbo;
 
 // ==============================================
 
@@ -181,8 +183,8 @@ void loadModel()
     grasses[1] = Model("assets/bush01_lod2.obj", "assets/bush01.png");
     grasses[2] = Model("assets/bush05_lod2.obj", "assets/bush05.png");
 
-    merged_grass = Model::merge(grasses);
-    
+    mergedGrass = Model::merge(grasses);
+
     MyPoissonSample* sample0 = MyPoissonSample::fromFile("assets/poissonPoints_155304.ppd");
     numSamples[0] = sample0->m_numSample;
     samplePositions[0] = sample0->m_positions; // (size = num_sample * 3)
@@ -197,34 +199,52 @@ void loadModel()
     numSamples[2] = sample2->m_numSample;
     samplePositions[2] = sample2->m_positions;
     std::cout << "There are " << numSamples[2] << " Samples." << std::endl;
+
+    totalInstanceCount = numSamples[0] + numSamples[1] + numSamples[2];
 }
+
+struct InstanceProperties
+{
+    glm::vec4 position;
+};
 
 void initSSBO()
 {
-    glGenBuffers(1, &ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-    glBufferStorage(GL_SHADER_STORAGE_BUFFER, (numSamples[0] + numSamples[1] + numSamples[2]) * 3 * sizeof(int),
-        NULL, GL_MAP_READ_BIT | GL_DYNAMIC_STORAGE_BIT);
-
-    long long offset = 0;
-    for (int i = 0; i < 3; i++)
+    InstanceProperties* rawInsData = new InstanceProperties[totalInstanceCount];
+    
+    for (int i = 0, j = 0; j < 3; ++j)
     {
-        glBufferSubData(GL_SHADER_STORAGE_BUFFER, offset, numSamples[i] * 3 * sizeof(int), samplePositions[i]);
-        offset += numSamples[i] * 3 * sizeof(int);
+        auto positions = samplePositions[j];
+        for (int k = 0; k < numSamples[j]; ++i, ++k)
+        {
+            rawInsData[i].position = glm::vec4(
+                positions[k * 3],
+                positions[k * 3 + 1],
+                positions[k * 3 + 2], 0.0);
+        }
     }
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
+    glGenBuffers(1, &raw_ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, raw_ssbo);
+    glBufferStorage(GL_SHADER_STORAGE_BUFFER, totalInstanceCount * 4 * sizeof(int),
+        rawInsData, GL_MAP_READ_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, raw_ssbo);
+
+    glGenBuffers(1, &valid_ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, valid_ssbo);
+    glBufferStorage(GL_SHADER_STORAGE_BUFFER, totalInstanceCount * 4 * sizeof(int),
+        nullptr, GL_MAP_READ_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, valid_ssbo);
 }
 
 void initInstancedSettings()
 {
     GLuint offsetHandel = SceneManager::Instance()->m_offsetHandel;
-    unsigned int offset = 0;
 
-    glBindVertexArray(merged_grass.shape.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, ssbo);
+    glBindVertexArray(mergedGrass.shape.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, valid_ssbo);
     glEnableVertexAttribArray(offsetHandel);
-    glVertexAttribPointer(offsetHandel, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)offset);
+    glVertexAttribPointer(offsetHandel, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
     glVertexAttribDivisor(offsetHandel, 1);
 
     glBindVertexArray(0);
@@ -240,19 +260,19 @@ void genDrawCommands()
 
     for (int i = 0; i < numCmd; i++)
     {
-        cmdList[i * 5] = merged_grass.drawCounts[i];
+        cmdList[i * 5] = mergedGrass.drawCounts[i];
         cmdList[i * 5 + 1] = numSamples[i];
         cmdList[i * 5 + 2] = offset;
-        ((GLint*)cmdList)[i * 5 + 3] = merged_grass.baseVertices[i];
+        ((GLint*)cmdList)[i * 5 + 3] = mergedGrass.baseVertices[i];
         cmdList[i * 5 + 4] = baseInst;
 
-        offset += merged_grass.drawCounts[i];
+        offset += mergedGrass.drawCounts[i];
         baseInst += numSamples[i];
     }
-    
+
     GLuint indirectBufHandle;
 
-    glBindVertexArray(merged_grass.shape.vao);
+    glBindVertexArray(mergedGrass.shape.vao);
     glGenBuffers(1, &indirectBufHandle);
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBufHandle);
     glBufferData(GL_DRAW_INDIRECT_BUFFER, sizeof(cmdList), cmdList, GL_DYNAMIC_DRAW);
@@ -289,6 +309,24 @@ bool initializeGL()
 
     delete vsShader;
     delete fsShader;
+    // =================================================================
+    // compute shader
+    Shader* cpShader = new Shader(GL_COMPUTE_SHADER);
+    cpShader->createShaderFromFile("src\\shader\\oglComputeShader.glsl");
+    std::cout << cpShader->shaderInfoLog() << "\n";
+    
+    computeShaderProgram = new ShaderProgram();
+    computeShaderProgram->init();
+    computeShaderProgram->attachShader(cpShader);
+    computeShaderProgram->checkStatus();
+    if (computeShaderProgram->status() != ShaderProgramStatus::READY)
+    {
+        return false;
+    }
+    computeShaderProgram->linkProgram();
+    cpShader->releaseShader();
+    delete cpShader;
+
     // =================================================================
     // init renderer
     defaultRenderer = new SceneRenderer();
@@ -356,13 +394,18 @@ void recalculateLocalZ()
 void drawGrass()
 {
     auto sm = SceneManager::Instance();
-    glUniform1i(sm->m_instancedDrawHandle, 1);
+    computeShaderProgram->useProgram();
+    glUniform1i(1, totalInstanceCount);
+    glDispatchCompute((totalInstanceCount / 1024) + 1, 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-    glBindVertexArray(merged_grass.shape.vao);
+    defaultRenderer->useProgram();
+    glUniform1i(sm->m_instancedDrawHandle, 1);
+    glBindVertexArray(mergedGrass.shape.vao);
 
     glActiveTexture(sm->m_albedoTexUnit);
     glUniform1i(sm->m_fs_albedoTexHandle, 0);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, merged_grass.material.diffuse_tex);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, mergedGrass.material.diffuse_tex);
 
     glUniform1i(sm->m_fs_pixelProcessIdHandle, sm->m_fs_textureMapping);
     glm::mat4 id(1);

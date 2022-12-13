@@ -37,6 +37,7 @@ public:
 public:
     void startNewFrame();
     void renderPass();
+    void useProgram();
 
 private:
     void clear(const glm::vec4& clearColor = glm::vec4(0.0, 0.0, 0.0, 1.0), const float depth = 1.0);

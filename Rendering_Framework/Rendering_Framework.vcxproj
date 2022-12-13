@@ -72,6 +72,7 @@
     <Content Include="assets\poissonPoints_155304.ppd" />
     <Content Include="assets\poissonPoints_2797.ppd" />
     <Content Include="assets\slime.obj" />
+    <Content Include="src\shader\oglComputeShader.glsl" />
     <Content Include="src\shader\oglFragmentShader.glsl" />
     <Content Include="src\shader\oglVertexShader.glsl" />
   </ItemGroup>
