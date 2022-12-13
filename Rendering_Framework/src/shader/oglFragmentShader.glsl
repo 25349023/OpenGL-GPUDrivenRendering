@@ -9,7 +9,7 @@ in vec3 f_uv;
 layout (location = 0) out vec4 fragColor;
 
 uniform int pixelProcessId;
-uniform sampler2D albedoTex;
+uniform sampler2DArray albedoTex;
 
 vec4 withFog(vec4 color) {
     const vec4 FOG_COLOR = vec4(0.0, 0.0, 0.0, 1);
@@ -49,7 +49,7 @@ void pureColor() {
 }
 
 void texture_mapping() {
-    vec4 texel = texture(albedoTex, vec2(f_uv));
+    vec4 texel = texture(albedoTex, f_uv);
     if (texel.a < 0.3) {
         discard;
     }

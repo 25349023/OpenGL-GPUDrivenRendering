@@ -15,9 +15,11 @@ texture_data loadImg(const char* path);
 
 struct Material
 {
+    texture_data texture;
     GLuint diffuse_tex{};
 
     Material() = default;
     
     void bindTexture(const char* path);
+    void bindTexture2DArray(int numTex);
 };

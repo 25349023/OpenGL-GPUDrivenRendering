@@ -1,5 +1,7 @@
 #define GLM_FORCE_SWIZZLE
 
+#include <array>
+
 #include "src\Shader.h"
 #include "src\SceneRenderer.h"
 #include <GLFW\glfw3.h>
@@ -62,7 +64,6 @@ glm::mat4 playerViewMat;
 
 glm::vec3 godEye(0.0, 50.0, 20.0), godViewDir(0.0, -30.0, -30.0), godUp(0.0, 1.0, 0.0);
 glm::vec3 godLocalX(-1, 0, 0), godLocalY(0, 1, 0), godLocalZ(0, 0, -1);
-// glm::vec3(0.0, 50.0, 20.0), glm::vec3(0.0, 20.0, -10.0), glm::vec3(0.0, 1.0, 0.0)
 glm::vec3 playerEye(0.0, 8.0, 10.0), playerCenter(0.0, 5.0, 0.0), playerUp(0.0, 1.0, 0.0);
 glm::vec3 playerLocalZ(0, 0, -1);
 
@@ -70,7 +71,7 @@ ViewFrustumSceneObject* viewFrustumSO = nullptr;
 InfinityPlane* infinityPlane = nullptr;
 // ==============================================
 
-Model grasses[3];
+Model merged_grass;
 int numSamples[3];
 const float* samplePositions[3];
 
@@ -174,10 +175,14 @@ void vsyncDisabled(GLFWwindow* window)
 
 void loadModel()
 {
+    std::vector<Model> grasses(3);
+
     grasses[0] = Model("assets/grassB.obj", "assets/grassB_albedo.png");
     grasses[1] = Model("assets/bush01_lod2.obj", "assets/bush01.png");
     grasses[2] = Model("assets/bush05_lod2.obj", "assets/bush05.png");
 
+    merged_grass = Model::merge(grasses);
+    
     MyPoissonSample* sample0 = MyPoissonSample::fromFile("assets/poissonPoints_155304.ppd");
     numSamples[0] = sample0->m_numSample;
     samplePositions[0] = sample0->m_positions; // (size = num_sample * 3)
@@ -207,10 +212,7 @@ void initSSBO()
         glBufferSubData(GL_SHADER_STORAGE_BUFFER, offset, numSamples[i] * 3 * sizeof(int), samplePositions[i]);
         offset += numSamples[i] * 3 * sizeof(int);
     }
-    // glBufferSubData(GL_SHADER_STORAGE_BUFFER, numSamples[0] * 3 * sizeof(int),
-    //     numSamples[1] * 3 * sizeof(int), samplePositions[1]);
-    // glBufferSubData(GL_SHADER_STORAGE_BUFFER, (numSamples[0] + numSamples[2]) * 3 * sizeof(int),
-    //     numSamples[2] * 3 * sizeof(int), samplePositions[2]);
+
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
 }
 
@@ -219,16 +221,41 @@ void initInstancedSettings()
     GLuint offsetHandel = SceneManager::Instance()->m_offsetHandel;
     unsigned int offset = 0;
 
-    for (int i = 0; i < 3; i++)
-    {
-        glBindVertexArray(grasses[i].shape.vao);
-        glBindBuffer(GL_ARRAY_BUFFER, ssbo);
-        glEnableVertexAttribArray(offsetHandel);
-        glVertexAttribPointer(offsetHandel, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)offset);
-        glVertexAttribDivisor(offsetHandel, 1);
+    glBindVertexArray(merged_grass.shape.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, ssbo);
+    glEnableVertexAttribArray(offsetHandel);
+    glVertexAttribPointer(offsetHandel, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)offset);
+    glVertexAttribDivisor(offsetHandel, 1);
 
-        offset += numSamples[i] * 3 * sizeof(int);
+    glBindVertexArray(0);
+}
+
+void genDrawCommands()
+{
+    const int numCmd = 3;
+    GLuint cmdList[numCmd * 5];
+
+    unsigned int offset = 0;
+    unsigned int baseInst = 0;
+
+    for (int i = 0; i < numCmd; i++)
+    {
+        cmdList[i * 5] = merged_grass.drawCounts[i];
+        cmdList[i * 5 + 1] = numSamples[i];
+        cmdList[i * 5 + 2] = offset;
+        ((GLint*)cmdList)[i * 5 + 3] = merged_grass.baseVertices[i];
+        cmdList[i * 5 + 4] = baseInst;
+
+        offset += merged_grass.drawCounts[i];
+        baseInst += numSamples[i];
     }
+    
+    GLuint indirectBufHandle;
+
+    glBindVertexArray(merged_grass.shape.vao);
+    glGenBuffers(1, &indirectBufHandle);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBufHandle);
+    glBufferData(GL_DRAW_INDIRECT_BUFFER, sizeof(cmdList), cmdList, GL_DYNAMIC_DRAW);
     glBindVertexArray(0);
 }
 
@@ -295,10 +322,11 @@ bool initializeGL()
     m_imguiPanel = new MyImGuiPanel();
 
     // =================================================================	
-    // load objs
+    // load objs, init buffers
     loadModel();
     initSSBO();
     initInstancedSettings();
+    genDrawCommands();
 
     return true;
 }
@@ -330,20 +358,17 @@ void drawGrass()
     auto sm = SceneManager::Instance();
     glUniform1i(sm->m_instancedDrawHandle, 1);
 
-    for (int i = 0; i < 3; i++)
-    {
-        glBindVertexArray(grasses[i].shape.vao);
+    glBindVertexArray(merged_grass.shape.vao);
 
-        glActiveTexture(sm->m_albedoTexUnit);
-        glUniform1i(sm->m_fs_albedoTexHandle, 0);
-        glBindTexture(GL_TEXTURE_2D, grasses[i].material.diffuse_tex);
+    glActiveTexture(sm->m_albedoTexUnit);
+    glUniform1i(sm->m_fs_albedoTexHandle, 0);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, merged_grass.material.diffuse_tex);
 
-        glUniform1i(sm->m_fs_pixelProcessIdHandle, sm->m_fs_textureMapping);
-        glm::mat4 id(1);
-        glUniformMatrix4fv(sm->m_modelMatHandle, 1, false, glm::value_ptr(id));
+    glUniform1i(sm->m_fs_pixelProcessIdHandle, sm->m_fs_textureMapping);
+    glm::mat4 id(1);
+    glUniformMatrix4fv(sm->m_modelMatHandle, 1, false, glm::value_ptr(id));
 
-        glDrawElementsInstanced(GL_TRIANGLES, grasses[i].shape.draw_count, GL_UNSIGNED_INT, 0, numSamples[i]);
-    }
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, 3, 0);
 
     glBindVertexArray(0);
     glUniform1i(sm->m_instancedDrawHandle, 0);

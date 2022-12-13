@@ -25,9 +25,9 @@ struct Shape
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
 
-    unsigned int draw_count;
+    unsigned int drawCount;
 
-    Shape(): vao(0), vbo(0), ibo(0), draw_count(0) {}
+    Shape(): vao(0), vbo(0), ibo(0), drawCount(0) {}
 
     void extractMeshData(const aiMesh* mesh);
     void extractMeshIndices(const aiMesh* mesh);

@@ -12,8 +12,8 @@ texture_data loadImg(const char* path)
     stbi_uc* data = stbi_load(path, &texture.width, &texture.height, &n, 4);
     if (data != nullptr)
     {
-        texture.data = new unsigned char[texture.width * texture.height * 4 * sizeof(unsigned char)];
-        memcpy(texture.data, data, texture.width * texture.height * 4 * sizeof(unsigned char));
+        texture.data = new unsigned char[texture.width * texture.height * 4];
+        memcpy(texture.data, data, texture.width * texture.height * 4);
         stbi_image_free(data);
     }
     return texture;
@@ -21,8 +21,8 @@ texture_data loadImg(const char* path)
 
 void Material::bindTexture(const char* path)
 {
-    texture_data texture = loadImg(path);
-    
+    texture = loadImg(path);
+
     glGenTextures(1, &diffuse_tex);
     glBindTexture(GL_TEXTURE_2D, diffuse_tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texture.width, texture.height, 0,
@@ -33,4 +33,19 @@ void Material::bindTexture(const char* path)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+}
+
+void Material::bindTexture2DArray(int numTex)
+{
+    glGenTextures(1, &diffuse_tex);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, diffuse_tex);
+    // the internal format for glTexStorageXD must be "Sized Internal Formats"
+    glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA32F, texture.width, texture.height, numTex);
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, texture.width, texture.height, numTex,
+        GL_RGBA, GL_UNSIGNED_BYTE, texture.data);
+    
+    glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
 }

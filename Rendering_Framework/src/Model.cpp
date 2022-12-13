@@ -29,7 +29,7 @@ void Model::loadMeshes(const char* path)
 
     shape.bindBuffers();
 
-    shape.draw_count = mesh->mNumFaces * 3;
+    shape.drawCount = mesh->mNumFaces * 3;
 }
 
 void Model::loadMaterials(const char* path)
@@ -40,13 +40,13 @@ void Model::loadMaterials(const char* path)
 Model Model::merge(std::vector<Model>& models)
 {
     Model merged;
-    std::vector<Vertex> Shape::* p = &Shape::vertices;
 
+    // merge shapes
     auto& shape = merged.shape;
     for (int i = 0; i < models.size(); ++i)
     {
         merged.baseVertices.push_back(shape.vertices.size());
-        
+
         for (Vertex& v : models[i].shape.vertices)
         {
             v.tex_coords.z = (float)i;
@@ -57,9 +57,26 @@ Model Model::merge(std::vector<Model>& models)
         shape.indices.insert(shape.indices.end(),
             models[i].shape.indices.begin(), models[i].shape.indices.end());
 
-        shape.draw_count += models[i].shape.draw_count;
+        merged.drawCounts.push_back(models[i].shape.drawCount);
+        shape.drawCount += models[i].shape.drawCount;
     }
 
     shape.bindBuffers();
+
+    // merge textures
+    auto& texture = merged.material.texture;
+    texture.height = models[0].material.texture.height;
+    texture.width = models[0].material.texture.width;
+
+    size_t texture_size = texture.width * texture.height * 4;
+    texture.data = new unsigned char[texture_size * models.size()];
+
+    for (int i = 0; i < models.size(); ++i)
+    {
+        memcpy(texture.data + texture_size * i, models[i].material.texture.data, texture_size);
+    }
+
+    merged.material.bindTexture2DArray(models.size());
+
     return merged;
 }

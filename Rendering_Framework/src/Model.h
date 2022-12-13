@@ -12,6 +12,7 @@ struct Model
     Shape shape{};
     Material material{};
 
+    std::vector<unsigned int> drawCounts;
     std::vector<int> baseVertices;
 
     Model() = default;
