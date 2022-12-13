@@ -12,12 +12,8 @@ struct DrawCommand {
     uint baseInstance;
 };
 
-//struct RawInstanceProperties {
-//    vec4 position; 
-//    ivec4 indices;
-//};
-
 struct InstanceProperties {
+    // last element: type of grass (0 or 1 or 2)
     vec4 position;
 };
 
@@ -40,6 +36,9 @@ void main() {
     if (idx >= numMaxInstance) {
         return;
     }
-    
-    currValidInstanceProps[idx].position = rawInstanceProps[idx].position;
+
+    int grass_type = int(rawInstanceProps[idx].position.w);
+    const uint unique_idx = atomicAdd(drawCmds[grass_type].instanceCount, uint(1));
+    uint offset = drawCmds[grass_type].baseInstance;
+    currValidInstanceProps[unique_idx + offset] = rawInstanceProps[idx];
 }

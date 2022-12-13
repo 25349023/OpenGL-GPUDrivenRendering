@@ -74,6 +74,7 @@
     <Content Include="assets\slime.obj" />
     <Content Include="src\shader\oglComputeShader.glsl" />
     <Content Include="src\shader\oglFragmentShader.glsl" />
+    <Content Include="src\shader\oglResetParamShader.glsl" />
     <Content Include="src\shader\oglVertexShader.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
