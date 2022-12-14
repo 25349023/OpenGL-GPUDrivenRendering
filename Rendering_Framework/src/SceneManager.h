@@ -70,4 +70,5 @@ public:
     int m_fs_pureColor;
     int m_fs_textureMappingWithTextureArray;
     int m_fs_finalPass;
+    int m_fs_slime;
 };

@@ -144,6 +144,7 @@ bool SceneRenderer::setUpShader()
     manager->m_fs_pureColor = 5;
     manager->m_fs_textureMappingWithTextureArray = 6;
     manager->m_fs_finalPass = 7;
+    manager->m_fs_slime = 8;
 
     manager->m_fs_albedoTexHandle = glGetUniformLocation(programId, "albedoTex");
 
