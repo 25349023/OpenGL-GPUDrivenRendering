@@ -3,6 +3,7 @@
 layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 layout (location = 1) uniform int numMaxInstance;
+layout (location = 2) uniform mat4 viewProjMat;
 
 struct DrawCommand {
     uint count;
@@ -37,8 +38,17 @@ void main() {
         return;
     }
 
-    int grass_type = int(rawInstanceProps[idx].position.w);
-    const uint unique_idx = atomicAdd(drawCmds[grass_type].instanceCount, uint(1));
-    uint offset = drawCmds[grass_type].baseInstance;
-    currValidInstanceProps[unique_idx + offset] = rawInstanceProps[idx];
+    vec4 clipCoord = viewProjMat * vec4(rawInstanceProps[idx].position.xyz, 1.0);
+    clipCoord /= clipCoord.w;
+
+    bool insideFrustum = (-1.0 <= clipCoord.x) && (clipCoord.x <= 1.0)
+            && (-1.0 <= clipCoord.y) && (clipCoord.y <= 1.0)
+            && (-1.0 <= clipCoord.z) && (clipCoord.z <= 1.0);
+
+    if (insideFrustum) {
+        int grass_type = int(rawInstanceProps[idx].position.w);
+        const uint unique_idx = atomicAdd(drawCmds[grass_type].instanceCount, uint(1));
+        uint offset = drawCmds[grass_type].baseInstance;
+        currValidInstanceProps[unique_idx + offset] = rawInstanceProps[idx];
+    }
 }

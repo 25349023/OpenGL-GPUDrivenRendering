@@ -93,7 +93,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(FRAME_WIDTH, FRAME_HEIGHT, "rendering", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(FRAME_WIDTH, FRAME_HEIGHT, "111062566_AS3", nullptr, nullptr);
     if (window == nullptr)
     {
         std::cout << "failed to create GLFW window\n";
@@ -212,7 +212,7 @@ struct InstanceProperties
 void initSSBO()
 {
     InstanceProperties* rawInsData = new InstanceProperties[totalInstanceCount];
-    
+
     for (int i = 0, j = 0; j < 3; ++j)
     {
         auto positions = samplePositions[j];
@@ -286,7 +286,7 @@ void genDrawCommands()
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, indirectBufHandle);
     glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(DrawCommand) * numCmd, cmdList, GL_MAP_READ_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, indirectBufHandle);
-    
+
     glBindVertexArray(mergedGrass.shape.vao);
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectBufHandle);
     glBindVertexArray(0);
@@ -323,12 +323,12 @@ bool initializeGL()
     delete vsShader;
     delete fsShader;
     // =================================================================
-    
+
     // reset shader
     Shader* resetShader = new Shader(GL_COMPUTE_SHADER);
     resetShader->createShaderFromFile("src\\shader\\oglResetParamShader.glsl");
     std::cout << resetShader->shaderInfoLog() << "\n";
-    
+
     resetShaderProgram = new ShaderProgram();
     resetShaderProgram->init();
     resetShaderProgram->attachShader(resetShader);
@@ -341,12 +341,12 @@ bool initializeGL()
     resetShader->releaseShader();
     delete resetShader;
     // =================================================================
-    
+
     // compute shader
     Shader* cpShader = new Shader(GL_COMPUTE_SHADER);
     cpShader->createShaderFromFile("src\\shader\\oglComputeShader.glsl");
     std::cout << cpShader->shaderInfoLog() << "\n";
-    
+
     computeShaderProgram = new ShaderProgram();
     computeShaderProgram->init();
     computeShaderProgram->attachShader(cpShader);
@@ -429,9 +429,11 @@ void drawGrass()
     resetShaderProgram->useProgram();
     glDispatchCompute(1, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    
+
     computeShaderProgram->useProgram();
+    glm::mat4 vpMat = playerProjMat * playerViewMat;
     glUniform1i(1, totalInstanceCount);
+    glUniformMatrix4fv(2, 1, false, glm::value_ptr(vpMat));
     glDispatchCompute((totalInstanceCount / 1024) + 1, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
