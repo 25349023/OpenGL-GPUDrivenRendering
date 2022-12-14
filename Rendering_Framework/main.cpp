@@ -20,6 +20,7 @@
 #include "src/Shape.h"
 #include "src/Material.h"
 #include "src/Model.h"
+#include "src/MyMovingTrack.h"
 
 #pragma comment (lib, "lib-vc2015\\glfw3.lib")
 #pragma comment(lib, "assimp-vc141-mt.lib")
@@ -71,7 +72,7 @@ ViewFrustumSceneObject* viewFrustumSO = nullptr;
 InfinityPlane* infinityPlane = nullptr;
 // ==============================================
 
-Model mergedGrass;
+Model mergedGrass, slime;
 int numSamples[3];
 const float* samplePositions[3];
 int totalInstanceCount;
@@ -80,6 +81,10 @@ ShaderProgram* computeShaderProgram;
 ShaderProgram* resetShaderProgram;
 GLuint vao, raw_ssbo, valid_ssbo, drawCmd_ssbo;
 
+IMovingTrack* movingTrack = nullptr;
+
+enum Key { KEY_W, KEY_A, KEY_S, KEY_D };
+bool keyDown[4] = { false, false, false, false };
 // ==============================================
 
 void updateWhenPlayerProjectionChanged(const float nearDepth, const float farDepth);
@@ -175,8 +180,14 @@ void vsyncDisabled(GLFWwindow* window)
     }
 }
 
+void initSlime()
+{
+    movingTrack = new IMovingTrack();
 
-void loadModel()
+    slime = Model("assets/slime.obj", nullptr);
+}
+
+void initGrass()
 {
     std::vector<Model> grasses(3);
 
@@ -393,7 +404,8 @@ bool initializeGL()
 
     // =================================================================	
     // load objs, init buffers
-    loadModel();
+    initSlime();
+    initGrass();
     initSSBO();
     initInstancedSettings();
     genDrawCommands();
@@ -413,6 +425,33 @@ void updateGodViewMat()
 
 void updatePlayerViewMat()
 {
+    const float translateSpeed = 0.1f, rotateSpeed = 0.5f;
+    const glm::vec3 translateAmount = translateSpeed * playerLocalZ;
+
+    if (keyDown[KEY_W])
+    {
+        playerEye += translateAmount;
+        playerCenter += translateAmount;
+    }
+    else if (keyDown[KEY_S])
+    {
+        playerEye -= translateAmount;
+        playerCenter -= translateAmount;
+    }
+
+    if (keyDown[KEY_A])
+    {
+        playerCenter = rotateCenterAccordingToEye(
+            playerCenter, playerEye, playerViewMat, glm::radians(rotateSpeed));
+        recalculateLocalZ();
+    }
+    else if (keyDown[KEY_D])
+    {
+        playerCenter = rotateCenterAccordingToEye(
+            playerCenter, playerEye, playerViewMat, glm::radians(-rotateSpeed));
+        recalculateLocalZ();
+    }
+
     playerViewMat = glm::lookAt(playerEye, playerCenter, playerUp);
 }
 
@@ -421,6 +460,26 @@ void recalculateLocalZ()
     playerLocalZ = playerCenter - playerEye;
     playerLocalZ.y = 0;
     playerLocalZ = glm::normalize(playerLocalZ);
+}
+
+void drawSlime()
+{
+    auto sm = SceneManager::Instance();
+    defaultRenderer->useProgram();
+
+    glUniform1i(sm->m_instancedDrawHandle, 0);
+    glBindVertexArray(slime.shape.vao);
+
+    glUniform1i(sm->m_fs_pixelProcessIdHandle, sm->m_fs_slime);
+    movingTrack->update();
+    glm::vec3 slimePos = movingTrack->position();
+    glm::mat4 modelMat(1);
+    modelMat = glm::translate(modelMat, slimePos);
+    glUniformMatrix4fv(sm->m_modelMatHandle, 1, false, glm::value_ptr(modelMat));
+
+    glDrawElements(GL_TRIANGLES, slime.shape.drawCount, GL_UNSIGNED_INT, NULL);
+
+    glBindVertexArray(0);
 }
 
 void drawGrass()
@@ -432,8 +491,11 @@ void drawGrass()
 
     computeShaderProgram->useProgram();
     glm::mat4 vpMat = playerProjMat * playerViewMat;
+    glm::vec3 slimePos = movingTrack->position();
+
     glUniform1i(1, totalInstanceCount);
     glUniformMatrix4fv(2, 1, false, glm::value_ptr(vpMat));
+    glUniform3fv(3, 1, glm::value_ptr(slimePos));
     glDispatchCompute((totalInstanceCount / 1024) + 1, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -482,6 +544,7 @@ void paintGL()
     defaultRenderer->setProjection(godProjMat);
     defaultRenderer->setView(godViewMat);
     defaultRenderer->renderPass();
+    drawSlime();
     drawGrass();
 
     // rendering with player view
@@ -489,10 +552,11 @@ void paintGL()
     defaultRenderer->setProjection(playerProjMat);
     defaultRenderer->setView(playerViewMat);
     defaultRenderer->renderPass();
+    drawSlime();
     drawGrass();
     // ===============================
 
-    ImGui::Begin("My name is window");
+    ImGui::Begin("FPS Info");
     m_imguiPanel->update();
     ImGui::End();
 
@@ -549,28 +613,19 @@ void cursorPosCallback(GLFWwindow* window, double x, double y)
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    const float translateSpeed = 0.5f, rotateSpeed = 1.5f;
-    const glm::vec3 translateAmount = translateSpeed * playerLocalZ;
-
     switch (key)
     {
     case GLFW_KEY_W:
-        playerEye += translateAmount;
-        playerCenter += translateAmount;
+        keyDown[KEY_W] = action != GLFW_RELEASE;
         break;
     case GLFW_KEY_S:
-        playerEye -= translateAmount;
-        playerCenter -= translateAmount;
+        keyDown[KEY_S] = action != GLFW_RELEASE;
         break;
     case GLFW_KEY_A:
-        playerCenter = rotateCenterAccordingToEye(
-            playerCenter, playerEye, playerViewMat, glm::radians(rotateSpeed));
-        recalculateLocalZ();
+        keyDown[KEY_A] = action != GLFW_RELEASE;
         break;
     case GLFW_KEY_D:
-        playerCenter = rotateCenterAccordingToEye(
-            playerCenter, playerEye, playerViewMat, glm::radians(-rotateSpeed));
-        recalculateLocalZ();
+        keyDown[KEY_D] = action != GLFW_RELEASE;
         break;
     }
 }

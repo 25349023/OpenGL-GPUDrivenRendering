@@ -8,7 +8,10 @@
 Model::Model(const char* mesh_path, const char* tex_path)
 {
     loadMeshes(mesh_path);
-    loadMaterials(tex_path);
+    if (tex_path)
+    {
+        loadMaterials(tex_path);
+    }
 }
 
 void Model::loadMeshes(const char* path)

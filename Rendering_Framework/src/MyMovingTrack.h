@@ -26,7 +26,7 @@ public:
 
     virtual void update()
     {
-        if (this->m_frameCount > 30)
+        if (this->m_frameCount > 10)
         {
             float radiansDelta = this->m_dist(this->m_engine);
             this->m_radians = this->m_radians + radiansDelta;
@@ -68,7 +68,7 @@ public:
 protected:
     glm::vec3 m_currPosition;
     glm::vec3 m_direction;
-    float m_speed = 0.07;
+    float m_speed = 0.03;
     float m_radians = 0.0;
 
     std::normal_distribution<double> m_dist;

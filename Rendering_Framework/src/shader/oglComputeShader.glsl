@@ -4,6 +4,7 @@ layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 layout (location = 1) uniform int numMaxInstance;
 layout (location = 2) uniform mat4 viewProjMat;
+layout (location = 3) uniform vec3 slimePos;
 
 struct DrawCommand {
     uint count;
@@ -45,8 +46,13 @@ void main() {
             && (-1.0 <= clipCoord.y) && (clipCoord.y <= 1.0)
             && (-1.0 <= clipCoord.z) && (clipCoord.z <= 1.0);
 
-    if (insideFrustum) {
-        int grass_type = int(rawInstanceProps[idx].position.w);
+    // cull slime
+    if (distance(slimePos, rawInstanceProps[idx].position.xyz) < 2.0) {
+        rawInstanceProps[idx].position.w = 3.0;
+    }
+
+    int grass_type = int(rawInstanceProps[idx].position.w);
+    if (insideFrustum && grass_type != 3) {
         const uint unique_idx = atomicAdd(drawCmds[grass_type].instanceCount, uint(1));
         uint offset = drawCmds[grass_type].baseInstance;
         currValidInstanceProps[unique_idx + offset] = rawInstanceProps[idx];

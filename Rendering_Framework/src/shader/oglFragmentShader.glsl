@@ -63,28 +63,30 @@ void phong_shading() {
     vec3 N = normalize(f_worldNormal);
     vec3 L = normalize(vec3(0.4, 0.5, 0.8));
     vec3 V = normalize(-f_worldVertex);
-    vec3 H = normalize(L + V);
-    
-    vec3 albedo;
+    vec3 R = normalize(2 * dot(L, N) * N - L);
+
+    vec4 albedo;
     vec3 k_s;
     if (pixelProcessId == 1) {
-        albedo = texture(albedoTex, f_uv).xyz;
+        albedo = texture(albedoTex, f_uv);
+        if (albedo.a < 0.3) {
+            discard;
+        }
         k_s = vec3(0.0);
     } else if (pixelProcessId == 8) {
-        albedo = vec3(0.0, 0.5, 0.7);
+        albedo = vec4(0.0, 0.5, 0.7, 1.0);
         k_s = vec3(1.0);
     }
-    
-    vec3 ambient = lightAmbient * albedo;
-    vec3 diffuse = lightDiffuse * max(dot(N, L), 0.0) * albedo;
-    vec3 specular = lightSpecular * pow(max(dot(N, H), 0.0), 1.0) * k_s;
-    
+
+    vec3 ambient = lightAmbient * albedo.xyz;
+    vec3 diffuse = lightDiffuse * max(dot(N, L), 0.0) * albedo.xyz;
+    vec3 specular = lightSpecular * pow(max(dot(N, R), 0.0), 1.0) * k_s;
+
     fragColor = vec4(ambient + diffuse + specular, 1.0);
 }
 
 void main() {
-    if (pixelProcessId == 1) {
-        texture_mapping();
+    if (pixelProcessId == 1 || pixelProcessId == 8) {
         phong_shading();
     }
     else if (pixelProcessId == 4) {
@@ -93,5 +95,4 @@ void main() {
     else if (pixelProcessId == 5) {
         pureColor();
     }
-
 }
